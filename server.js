@@ -5,27 +5,27 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+// CORS - Allow GitHub Pages
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type']
+}));
+
 app.use(express.json());
 
-// TwelveData API Key
 const TWELVE_DATA_KEY = process.env.TWELVE_DATA_API_KEY || 'b1293a711f704075b88e08ca871f235f';
-
-// ==========================================
-// ROUTES
-// ==========================================
 
 // Health check
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'healthy', 
         time: new Date().toISOString(),
-        service: 'XAGUSD Pro Backend'
+        service: 'XAGUSD Pro'
     });
 });
 
-// Real-time price
+// Get live price
 app.get('/api/price', async (req, res) => {
     try {
         const response = await axios.get(
@@ -34,6 +34,49 @@ app.get('/api/price', async (req, res) => {
         );
         res.json(response.data);
     } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch price', message: error.message });
+    }
+});
+
+// Get historical data
+app.get('/api/historical', async (req, res) => {
+    try {
+        const { interval = '30min' } = req.query;
+        const response = await axios.get(
+            `https://api.twelvedata.com/time_series?symbol=XAG/USD&interval=${interval}&outputsize=100&apikey=${TWELVE_DATA_KEY}`,
+            { timeout: 10000 }
+        );
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch historical data', message: error.message });
+    }
+});
+
+// News
+app.get('/api/news', (req, res) => {
+    res.json({
+        data: [
+            { time: '15:30 GMT', title: 'US Non-Farm Payrolls', impact: 'High', currency: 'USD', forecast: '200K', previous: '180K' },
+            { time: '17:00 GMT', title: 'ISM Manufacturing PMI', impact: 'High', currency: 'USD', forecast: '47.5', previous: '46.7' },
+            { time: 'Tomorrow 14:00', title: 'FOMC Rate Decision', impact: 'High', currency: 'USD', forecast: '5.50%', previous: '5.50%' }
+        ]
+    });
+});
+
+// Execute trade (mock)
+app.post('/trade/execute', (req, res) => {
+    console.log('Trade request:', req.body);
+    res.json({ 
+        success: true, 
+        ticket: Math.floor(Math.random() * 1000000),
+        message: 'Trade executed (demo mode)'
+    });
+});
+
+app.listen(PORT, () => {
+    console.log(`🚀 XAGUSD Pro Server running on port ${PORT}`);
+    console.log(`📊 TwelveData: ${TWELVE_DATA_KEY ? 'Connected' : 'Missing Key'}`);
+});
         console.error('Price fetch error:', error.message);
         res.status(500).json({ error: 'Failed to fetch price' });
     }
