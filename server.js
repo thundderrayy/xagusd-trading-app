@@ -5,27 +5,15 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS - Allow GitHub Pages
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type']
-}));
-
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
 const TWELVE_DATA_KEY = process.env.TWELVE_DATA_API_KEY || 'b1293a711f704075b88e08ca871f235f';
 
-// Health check
 app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy', 
-        time: new Date().toISOString(),
-        service: 'XAGUSD Pro'
-    });
+    res.json({ status: 'healthy', time: new Date().toISOString() });
 });
 
-// Get live price
 app.get('/api/price', async (req, res) => {
     try {
         const response = await axios.get(
@@ -34,6 +22,34 @@ app.get('/api/price', async (req, res) => {
         );
         res.json(response.data);
     } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch price' });
+    }
+});
+
+app.get('/api/historical', async (req, res) => {
+    try {
+        const { interval = '30min' } = req.query;
+        const response = await axios.get(
+            `https://api.twelvedata.com/time_series?symbol=XAG/USD&interval=${interval}&outputsize=100&apikey=${TWELVE_DATA_KEY}`,
+            { timeout: 10000 }
+        );
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch data' });
+    }
+});
+
+app.get('/api/news', (req, res) => {
+    res.json({
+        data: [
+            { time: '15:30 GMT', title: 'US Non-Farm Payrolls', impact: 'High', currency: 'USD', forecast: '200K', previous: '180K' }
+        ]
+    });
+});
+
+app.listen(PORT, () => {
+    console.log('Server running on port ' + PORT);
+});
         res.status(500).json({ error: 'Failed to fetch price', message: error.message });
     }
 });
